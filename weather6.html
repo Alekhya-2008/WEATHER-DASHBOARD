@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Dashboard with Map</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #05396B;
+            background-image: url('https://i.ibb.co/b1GtxPv/kkkk.jpg'); /* Updated background image URL */
+            background-size: cover; /* Ensure the image covers the entire screen */
+            background-position: center; /* Center the image */
+            background-attachment: fixed; /* Keep the image fixed while scrolling */
+            color: white;
+        }
+
+        .navbar {
+            margin-bottom: 20px;
+            background-color: #1F618D;
+        }
+
+        .navbar a {
+            color: white;
+            margin: 0 15px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .weather-card {
+            background-color: rgba(21, 67, 96, 0.8); /* Add transparency to weather cards */
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+            text-align: center;
+        }
+
+        .weather-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+
+        .form-inline {
+            margin-bottom: 20px;
+        }
+
+        .form-control {
+            max-width: 300px;
+        }
+
+        #map {
+            display: none;
+            height: 80vh;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <a href="#" id="home-button">Home</a>
+            <a href="#" id="search-button-nav">Search</a>
+            <a href="#" id="map-button">Map</a>
+        </div>
+    </nav>
+
+    <div id="weather-dashboard" class="container">
+        <h1 class="text-center mb-4">Weather Dashboard</h1>
+        <div class="form-inline justify-content-center" id="search-section">
+            <input type="text" id="search-city" class="form-control mr-2" placeholder="Enter city">
+            <button id="search-button" class="btn btn-primary">Search</button>
+        </div>
+        <div id="weather-grid" class="weather-grid mt-4"></div>
+    </div>
+
+    <div id="map" class="container"></div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.3/leaflet.js"></script>
+    <script>
+        const APIKey = "253c40938776710607b117dbbe2f7d54";
+        let map;
+        let marker;
+
+        const randomIndianCities = [
+            "Delhi", "Mumbai", "Kolkata", "Chennai", "Bangalore",
+            "Hyderabad", "Ahmedabad", "Pune", "Jaipur", "Lucknow",
+            "Nagpur", "Indore", "Patna", "Bhopal", "Thane",
+            "Agra", "Meerut", "Varanasi", "Coimbatore", "Gurgaon",
+            "Ludhiana", "Kanpur", "Vadodara", "Ranchi", "Nashik",
+            "Madurai", "Aurangabad", "Jodhpur", "Raipur", "Kochi"
+        ];
+
+        function getWeatherEmoji(condition) {
+            if (condition.includes("clear")) {
+                return "☀️"; // Clear sky
+            } else if (condition.includes("clouds")) {
+                return "☁️"; // Clouds
+            } else if (condition.includes("rain")) {
+                return "🌧️"; // Rain
+            } else if (condition.includes("snow")) {
+                return "❄️"; // Snow
+            } else if (condition.includes("thunderstorm")) {
+                return "🌩️"; // Thunderstorm
+            } else if (condition.includes("mist") || condition.includes("fog")) {
+                return "🌫️"; // Fog or mist
+            } else {
+                return "🌤️"; // Default
+            }
+        }
+
+        function displayWeatherCards(cities) {
+            $("#weather-grid").empty();
+            cities.forEach(city => {
+                const queryURL = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${APIKey}`;
+                $.ajax({
+                    url: queryURL,
+                    method: "GET",
+                    success: response => {
+                        const temp = (response.main.temp - 273.15).toFixed(1); // Convert Kelvin to Celsius
+                        const condition = response.weather[0].description;
+                        const emoji = getWeatherEmoji(condition);
+                        const humidity = response.main.humidity;
+                        const windSpeed = response.wind.speed;
+                        const pressure = response.main.pressure;
+                        const cardHTML = `
+                            <div class="weather-card">
+                                <h3>${response.name}</h3>
+                                <p>${emoji} ${temp}°C</p>
+                                <p>${condition}</p>
+                                <p>Humidity: ${humidity}%</p>
+                                <p>Wind Speed: ${windSpeed} m/s</p>
+                                <p>Pressure: ${pressure} hPa</p>
+                            </div>
+                        `;
+                        $("#weather-grid").append(cardHTML);
+                    },
+                    error: err => console.error(err)
+                });
+            });
+        }
+
+        $("#search-button").click(() => {
+            const city = $("#search-city").val();
+            if (city) {
+                const queryURL = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${APIKey}`;
+                $.ajax({
+                    url: queryURL,
+                    method: "GET",
+                    success: response => {
+                        $("#weather-grid").empty();
+                        const temp = (response.main.temp - 273.15).toFixed(1); // Convert Kelvin to Celsius
+                        const condition = response.weather[0].description;
+                        const emoji = getWeatherEmoji(condition);
+                        const humidity = response.main.humidity;
+                        const windSpeed = response.wind.speed;
+                        const pressure = response.main.pressure;
+                        const cardHTML = `
+                            <div class="weather-card">
+                                <h3>${response.name}</h3>
+                                <p>${emoji} ${temp}°C</p>
+                                <p>${condition}</p>
+                                <p>Humidity: ${humidity}%</p>
+                                <p>Wind Speed: ${windSpeed} m/s</p>
+                                <p>Pressure: ${pressure} hPa</p>
+                            </div>
+                        `;
+                        $("#weather-grid").append(cardHTML);
+
+                        // Show map with marker for the searched city
+                        showMap(response.coord.lat, response.coord.lon, response.name);
+                    },
+                    error: () => alert("City not found.")
+                });
+            }
+        });
+
+        function showMap(lat = 20, lon = 77, cityName = "World") {
+            if (!map) {
+                map = L.map("map").setView([lat, lon], 2);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 18
+                }).addTo(map);
+            } else {
+                map.setView([lat, lon], 6);
+            }
+
+            if (marker) {
+                map.removeLayer(marker);
+            }
+
+            marker = L.marker([lat, lon]).addTo(map).bindPopup(`${cityName}`).openPopup();
+        }
+
+        $("#map-button").click(() => {
+            $("#weather-dashboard").hide();
+            $("#map").show();
+            showMap(); // Show world map by default
+        });
+
+        $("#home-button").click(() => {
+            $("#map").hide();
+            $("#weather-dashboard").show();
+            displayWeatherCards(randomIndianCities);
+        });
+
+        $(document).ready(() => displayWeatherCards(randomIndianCities));
+    </script>
+</body>
+</html>
